@@ -17,7 +17,7 @@ const db = mysql.createConnection(
 );
 
 function displayTable(table) {
-    console.log(table);
+    // console.log(table);
     if (table == []) {
         console.log("This table is empty...");
         return; 
@@ -82,7 +82,7 @@ const questionTree = {
 };
 
 async function VAE() {
-    db.query(`select 
+    db.query(`SELECT 
     employee.id, 
     employee.first_name, 
     employee.last_name, 
@@ -91,9 +91,9 @@ async function VAE() {
     salary, 
     CONCAT(manager.first_name, ' ', manager.last_name) as manager 
     from employee 
-    CROSS JOIN role on employee.role_id = role.id
-    CROSS JOIN department on role.department_id = department.id
-    CROSS JOIN employee as manager on employee.manager_id = manager.id;`, (err, result) => {
+    LEFT JOIN role on employee.role_id = role.id
+    LEFT JOIN department on role.department_id = department.id
+    LEFT JOIN employee as manager on employee.manager_id = manager.id;`, (err, result) => {
         if (err) {
             console.log(err);
         } else {
@@ -104,62 +104,103 @@ async function VAE() {
 }
 
 async function AE() { // do this
-    db.query(`select 
-    employee.id, 
-    employee.first_name, 
-    employee.last_name, 
-    title, 
-    department.name as department, 
-    salary, 
-    CONCAT(manager.first_name, ' ', manager.last_name) as manager 
-    from employee 
-    CROSS JOIN role on employee.role_id = role.id
-    CROSS JOIN department on role.department_id = department.id
-    CROSS JOIN employee as manager on employee.manager_id = manager.id;`, (err, result) => {
+    db.query(`SELECT id, title from role;`, async(err, roles) => {
         if (err) {
             console.log(err);
         } else {
-            // console.log(result);
-            displayTable(result);
+            db.query(`SELECT id, CONCAT(first_name, ' ', last_name) as name from employee;`, async(err, managers) => {
+                if (err) {
+                    console.log(err);
+                } else {
+                    let Roles = roles.map( i => i.title );
+                    let Managers = ["None"].concat(managers.map( i => i.name ));
+                    // console.log(result, choices);
+                    let res = await iq.prompt([
+                        {
+                            type: "input",
+                            message: "What is the employee's first name?",
+                            name: "first_name"
+                        },
+                        {
+                            type: "input",
+                            message: "What is the employee's last name?",
+                            name: "last_name"
+                        },
+                        {
+                            type: "list",
+                            message: "What is the employee's role?",
+                            name: "role",
+                            choices: Roles
+                        },
+                        {
+                            type: "list",
+                            message: "Who is the employee's manager?",
+                            name: "manager",
+                            choices: Managers
+                        }
+                    ]);
+                    
+                    // console.log([{first_name:"None", last_name:"", id: "NONE"}].concat(managers).filter(i => i.first_name+" "+i.last_name == res.manager)[0].id);
+                    db.query(`INSERT INTO employee (first_name, last_name, role_id, manager_id)
+                    VALUE ( "${res.first_name}", "${res.last_name}", ${roles.filter(i => i.title == res.role)[0].id}, ${[{name:"None", id: "NULL"}].concat(managers).filter(i => i.name == res.manager)[0].id} );`, (err, response) => {
+                        if (err) {
+                            console.log(err);
+                        } else {
+                            // console.log(result);
+                            console.log(`Added ${res.role} to the database`);
+                        }
+                    });
+                }
+            });
         }
     });
 }
 
-async function UER() { // do this
-    db.query(`select 
-    employee.id, 
-    employee.first_name, 
-    employee.last_name, 
-    title, 
-    department.name as department, 
-    salary, 
-    CONCAT(manager.first_name, ' ', manager.last_name) as manager 
-    from employee 
-    CROSS JOIN role on employee.role_id = role.id
-    CROSS JOIN department on role.department_id = department.id
-    CROSS JOIN employee as manager on employee.manager_id = manager.id;`, (err, result) => {
+async function UER() {
+    db.query(`SELECT id, CONCAT(first_name, ' ', last_name) as name
+    from employee;`, (err, employees) => {
         if (err) {
             console.log(err);
         } else {
             // console.log(result);
-            displayTable(result);
+            db.query(`SELECT id, title
+            from role;`, async (err, roles) => {
+                if (err) {
+                    console.log(err);
+                } else {
+                    let res = await iq.prompt([
+                        {
+                            type: "list",
+                            message: "Which employee's role do you want to update?",
+                            name: "employee",
+                            choices: employees.map(i=>i.name)
+                        },
+                        {
+                            type: "list",
+                            message: "Which role do you want to assign to the selected employee?",
+                            name: "role",
+                            choices: roles.map(i=>i.title)
+                        }
+                    ]);
+                    db.query(`UPDATE employee
+                    SET role_id = ${roles.filter(i => i.title == res.role)[0].id}
+                    WHERE id = ${employees.filter(i => i.name == res.employee)[0].id};`, async (err, roles) => {
+                        if (err) {
+                            console.log(err);
+                        } else {
+                            console.log("Updated employee's role");
+                        }
+                    });
+                }
+            });
         }
     });
 }
 
 async function VAR() { // do this
-    db.query(`select 
-    employee.id, 
-    employee.first_name, 
-    employee.last_name, 
-    title, 
-    department.name as department, 
-    salary, 
-    CONCAT(manager.first_name, ' ', manager.last_name) as manager 
-    from employee 
-    CROSS JOIN role on employee.role_id = role.id
-    CROSS JOIN department on role.department_id = department.id
-    CROSS JOIN employee as manager on employee.manager_id = manager.id;`, (err, result) => {
+    db.query(`SELECT role.id, title, department.name as department, salary
+    from role 
+    CROSS JOIN department on role.department_id = department.id;`, (err, result) => {
         if (err) {
             console.log(err);
         } else {
@@ -169,27 +210,54 @@ async function VAR() { // do this
     });
 }
 
-async function AR() { // do this
-    let res = await iq.prompt({
-        type: "input",
-        message: "What is the name of the role?",
-        name: "role"
-    });
-
-    // console.log(res);
-    db.query(`INSERT INTO role (name) 
-    VALUE ( "${res.role}" );`, (err, result) => {
+async function AR() {
+    db.query(`SELECT name
+    from department;`, async(err, result) => {
         if (err) {
             console.log(err);
         } else {
-            // console.log(result);
-            console.log(`Added ${res.role} to the database`);
+            let choices = result.map( i => i.name )
+            // console.log(result, choices);
+            let res = await iq.prompt([
+                {
+                    type: "input",
+                    message: "What is the name of the role?",
+                    name: "role"
+                },
+                {
+                    type: "input",
+                    message: "What is the salary of the role?",
+                    name: "salary"
+                },
+                {
+                    type: "list",
+                    message: "Which department does the role belong to?",
+                    name: "department",
+                    choices: choices
+                }
+            ]);
+            db.query(`SELECT id from department where name = "${res.department}";`, (err, department) => {
+                if (err) {
+                    console.log(err);
+                } else {
+                    // console.log(res);
+                    db.query(`INSERT INTO role (title, salary, department_id) 
+                    VALUE ( "${res.role}", ${res.salary}, ${department[0].id} );`, (err, response) => {
+                        if (err) {
+                            console.log(err);
+                        } else {
+                            // console.log(result);
+                            console.log(`Added ${res.role} to the database`);
+                        }
+                    });
+                }
+            });
         }
     });
 }
 
 async function VAD() {
-    db.query(`select 
+    db.query(`SELECT 
     id, 
     name
     from department;`, (err, result) => {
@@ -238,58 +306,10 @@ console.log(` ______                 _
                           |___/                 
 `);
 
-const sleep = ms => new Promise(r => setTimeout(r, ms));
-
-VAE();
-sleep(100);
+// VAE();
 // AE();
-sleep(100);
 // UER();
-sleep(100);
-// VAR();
-sleep(100);
-AR();
-sleep(100);
-VAD();
-sleep(100);
-AD();
-
-// // Query database
-
-// let deletedRow = 2;
-
-// db.query(`DELETE FROM favorite_books WHERE id = ?`, deletedRow, (err, result) => {
-//   if (err) {
-//     console.log(err);
-//   }
-//   console.log(result);
-// });
-
-// // Query database
-// db.query('SELECT * FROM favorite_books', function (err, results) {
-//   console.log(results);
-// });
-
-// app.get("/api/movies", (req, res) => {
-//   db.query('SELECT movie_name FROM movies', (err, results) => {
-//     if (!err) {
-//       res.json(results);
-//       console.log("successfully returned movies list")
-//     } else {
-//       console.log("ERROR:", err);
-//       res.send(`ERROR: ${err}`);
-//     }
-//   });
-// });
-
-// app.post("/api/movies", (req, res) => {
-//   db.query('SELECT movie_name FROM movies', (err, results) => {
-//     if (!err) {
-//       res.json(results);
-//       console.log("successfully returned movies list")
-//     } else {
-//       console.log("ERROR:", err);
-//       res.send(`ERROR: ${err}`);
-//     }
-//   });
-// });
+VAR();
+// AR();
+// VAD();
+// AD();

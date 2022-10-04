@@ -58,7 +58,7 @@ function displayTable(table) {
 const questionTree = {
     type: "list",
     message: "What would you like to do?",
-    name: "member",
+    name: "action",
     choices: [
         "View All Employees",
         "Add Employee",
@@ -77,7 +77,9 @@ const questionTree = {
         AR,
         VAD,
         AD,
-        () => {}
+        ()=>{
+            db.end(()=>{console.log("db closed")})
+        }
     ]
 };
 
@@ -100,6 +102,7 @@ async function VAE() {
             // console.log(result);
             displayTable(result);
         }
+        main();
     });
 }
 
@@ -149,6 +152,7 @@ async function AE() { // do this
                             // console.log(result);
                             console.log(`Added ${res.role} to the database`);
                         }
+                        main();
                     });
                 }
             });
@@ -190,6 +194,7 @@ async function UER() {
                         } else {
                             console.log("Updated employee's role");
                         }
+                        main();
                     });
                 }
             });
@@ -207,6 +212,7 @@ async function VAR() { // do this
             // console.log(result);
             displayTable(result);
         }
+        main();
     });
 }
 
@@ -249,6 +255,7 @@ async function AR() {
                             // console.log(result);
                             console.log(`Added ${res.role} to the database`);
                         }
+                        main();
                     });
                 }
             });
@@ -267,6 +274,7 @@ async function VAD() {
             // console.log(result);
             displayTable(result);
         }
+        main();
     });
 }
 
@@ -286,7 +294,15 @@ async function AD() {
             // console.log(result);
             console.log(`Added ${res.department} to the database`);
         }
+        main();
     });
+}
+
+async function main() { // this definitely introduces the risk of a number of issues including stack overflow but it would work after restart anyway
+    let answer = await iq.prompt(questionTree)
+    let outcome = questionTree.outcomes[questionTree.choices.indexOf(answer.action)]
+    // console.log(outcome);
+    outcome();
 }
 
 //display Text Splash
@@ -306,10 +322,4 @@ console.log(` ______                 _
                           |___/                 
 `);
 
-// VAE();
-// AE();
-// UER();
-VAR();
-// AR();
-// VAD();
-// AD();
+main();
